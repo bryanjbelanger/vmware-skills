@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Apply one action to every VM matching a glob. Dry run unless --yes.
+# usage: fusion-each [--yes] <name-glob> <status|start|stop|hardstop|suspend|snapshot NAME>
+yes=0; [[ "$1" == --yes ]] && { yes=1; shift; }
+pat="$1"; act="$2"; arg="$3"
+[[ -z "$pat" || -z "$act" ]] && { sed -n '2,3p' "$0"; exit 2; }
+here="$(cd "$(dirname "$0")/../.." && pwd)/fusion-inventory/scripts"
+vms=(); while IFS= read -r l; do vms+=("$l"); done < <("$here/fusion-vmx" "$pat")
+[[ ${#vms[@]} -eq 0 ]] && { echo "no VMs match '$pat'"; exit 1; }
+running=$(vmrun list 2>/dev/null)
+for v in "${vms[@]}"; do
+  n=$(basename "$v" .vmx); on=0; grep -qxF "$v" <<< "$running" && on=1
+  case "$act" in
+    status)   echo "$n: $([[ $on == 1 ]] && echo on || echo off)"; continue ;;
+    start)    [[ $on == 1 ]] && { echo "$n: already on"; continue; }; cmd=(Power Start) ;;
+    stop)     [[ $on == 0 ]] && { echo "$n: already off"; continue; }; cmd=(Power Stop -o trySoft) ;;
+    hardstop) [[ $on == 0 ]] && { echo "$n: already off"; continue; }; cmd=(Power Stop -o hard) ;;
+    suspend)  [[ $on == 0 ]] && { echo "$n: already off"; continue; }; cmd=(Power Suspend -o trySoft) ;;
+    snapshot) [[ -z "$arg" ]] && { echo "snapshot needs a name"; exit 2; }; cmd=(Snapshot Take "$arg") ;;
+    *) echo "unknown action $act"; exit 2 ;;
+  esac
+  if [[ $yes == 1 ]]; then echo "$n: ${cmd[*]}"; vmcli "$v" "${cmd[@]}" || echo "$n: FAILED"
+  else echo "[dry-run] $n: vmcli ${cmd[*]}"; fi
+done
+[[ $yes == 0 && "$act" != status ]] && echo "(dry run, add --yes to execute)"
+exit 0

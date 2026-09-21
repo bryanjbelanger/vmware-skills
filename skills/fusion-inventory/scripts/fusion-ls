@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Table of VMs: name, power, vCPU, memMB, IP (running only), snapshots. Read-only.
+here="$(cd "$(dirname "$0")" && pwd)"
+running=$(vmrun list 2>/dev/null)
+printf '%-28s %-8s %-5s %-7s %-16s %s\n' NAME POWER VCPU MEM_MB IP SNAPS
+"$here/fusion-vmx" "${1:-*}" | while IFS= read -r v; do
+  n=$(basename "$v" .vmx)
+  cpu=$(sed -n 's/^numvcpus *= *"\(.*\)"/\1/p' "$v"); mem=$(sed -n 's/^memsize *= *"\(.*\)"/\1/p' "$v")
+  if grep -qxF "$v" <<< "$running"; then
+    p=on; ip=$(vmrun getGuestIPAddress "$v" 2>/dev/null | head -1)
+  else p=off; ip=-; fi
+  sn=$(grep -c '^snapshot[0-9]*.uid' "${v%.vmx}.vmsd" 2>/dev/null)
+  printf '%-28s %-8s %-5s %-7s %-16s %s\n' "$n" "$p" "${cpu:-1}" "${mem:-?}" "${ip:--}" "${sn:-0}"
+done

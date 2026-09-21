@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Read-only capacity and health report for the Fusion host and running guests.
+here="$(cd "$(dirname "$0")/../.." && pwd)/fusion-inventory/scripts"
+root="${FUSION_VM_ROOTS%%:*}"; root="${root:-$HOME/Virtual Machines.localized}"
+echo "== Host"; echo "cpus: $(sysctl -n hw.ncpu)"
+echo "mem GB: $(( $(sysctl -n hw.memsize) / 1073741824 ))"
+df -h "$root" | awk 'NR==2{print "VM volume free: "$4" ("$5" used)"}'
+echo; echo "== VM footprint on disk"; du -sh "$root"/*.vmwarevm 2>/dev/null | sort -hr
+echo; echo "== Running allocation"
+tot_cpu=0; tot_mem=0; run=$(vmrun list 2>/dev/null)
+while IFS= read -r v; do
+  grep -qxF "$v" <<< "$run" || continue
+  c=$(sed -n 's/^numvcpus *= *"\(.*\)"/\1/p' "$v"); m=$(sed -n 's/^memsize *= *"\(.*\)"/\1/p' "$v")
+  tot_cpu=$((tot_cpu + ${c:-1})); tot_mem=$((tot_mem + ${m:-0}))
+done < <("$here/fusion-vmx")
+echo "running vCPUs: $tot_cpu  running memory MB: $tot_mem"
+echo; echo "== Running guests"
+grep -v '^Total' <<< "$run" | while IFS= read -r v; do
+  [[ -z "$v" ]] && continue
+  echo "-- $(basename "$v" .vmx)"
+  vmcli "$v" Guest query 2>/dev/null | sed 's/^ *- */  /' | awk '/^ip:|^uptime:/{print "  "$0} /freeBytes:/{f=$2} /mount:/{m=$2} /totalBytes:/{print "  disk " m " free " f " of " $2}'
+done
+exit 0

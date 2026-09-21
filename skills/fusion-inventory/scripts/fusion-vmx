@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Print .vmx paths whose VM name matches a glob (default: all). Excludes templates (.vmtx).
+# Roots: $FUSION_VM_ROOTS (colon-separated) or ~/Virtual Machines.localized.
+pat="${1:-*}"
+IFS=: read -ra roots <<< "${FUSION_VM_ROOTS:-$HOME/Virtual Machines.localized}"
+for r in "${roots[@]}"; do
+  find "$r" -maxdepth 3 -name '*.vmx' -not -path '*/.*' 2>/dev/null
+done | sort | while IFS= read -r v; do
+  n=$(basename "$v" .vmx)
+  [[ "$n" == $pat ]] && printf '%s\n' "$v"
+done
+exit 0
