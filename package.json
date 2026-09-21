@@ -1,0 +1,12 @@
+{
+  "name": "@bryanjbelanger/vmware-skills",
+  "version": "0.1.0",
+  "description": "Claude Code skills for managing VMware Fusion like a datacenter with vmcli",
+  "keywords": ["claude-code", "skills", "vmware", "fusion", "vmcli"],
+  "license": "MIT",
+  "author": "Bryan Belanger",
+  "repository": { "type": "git", "url": "git+ssh://git@github.com/bryanjbelanger/vmware-skills.git" },
+  "homepage": "https://github.com/bryanjbelanger/vmware-skills",
+  "files": ["skills", "README.md", "LICENSE"],
+  "os": ["darwin"]
+}
